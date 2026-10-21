@@ -1,0 +1,6 @@
+{
+  "name": "EduPortal OS - Academic School & Integration Portal",
+  "description": "Multi-tenant academic operating system featuring school subscriptions, competency-based AOI assessment, role-based teacher subportals, automated attendance, parent portal with MFA, and task management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
