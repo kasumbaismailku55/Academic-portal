@@ -115,6 +115,8 @@ interface PortalContextType {
   deleteSubjectFromSchool: (subjectId: string) => void;
   renewSubscription: (schoolId: string, plan: 'Standard Academy' | 'Enterprise Campus', billing: 'termly' | 'annual', paymentMethod?: PaymentMethod, payerPhoneOrCard?: string) => void;
   toggleBlockSchool: (schoolId: string, isBlocked: boolean, reason?: string) => void;
+  blockSchool: (schoolId: string, isBlocked: boolean, reason?: string) => void;
+  deleteSchool: (schoolId: string) => void;
   updateClassTeacherRemarks: (classStream: string, teacherName: string, remarks: string) => void;
   getSchoolAppUrl: (school: School) => string;
 }
@@ -886,7 +888,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   // Block / Unblock School (Super Admin feature for ismailkasumba8@gmail.com)
-  const toggleBlockSchool = (schoolId: string, isBlocked: boolean, reason?: string) => {
+  const blockSchool = (schoolId: string, isBlocked: boolean, reason?: string) => {
     StorageService.setSchoolBlocked(schoolId, isBlocked, reason);
     setSchools(StorageService.getSchools());
     StorageService.logAction(
@@ -896,6 +898,31 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       isBlocked ? 'PORTAL_BLOCKED' : 'PORTAL_UNBLOCKED',
       reason || 'Super Admin access override'
     );
+    markSyncActivity();
+  };
+
+  const toggleBlockSchool = (schoolId: string, isBlocked: boolean, reason?: string) => {
+    blockSchool(schoolId, isBlocked, reason);
+  };
+
+  const deleteSchool = (schoolId: string) => {
+    StorageService.deleteSchool(schoolId);
+    const updatedSchools = StorageService.getSchools();
+    setSchools(updatedSchools);
+    setAllTeachers(StorageService.getTeachers());
+    setAllStudents(StorageService.getStudents());
+    setAllAssessments(StorageService.getAssessments());
+    setAllAttendance(StorageService.getAttendance());
+    setAllTasks(StorageService.getTasks());
+    setAllNotifications(StorageService.getNotifications());
+    setAllMessages(StorageService.getMessages());
+    setAllAuditLogs(StorageService.getAuditLogs());
+
+    if (currentSchoolId === schoolId) {
+      if (updatedSchools.length > 0) {
+        setCurrentSchoolId(updatedSchools[0].id);
+      }
+    }
     markSyncActivity();
   };
 
@@ -984,6 +1011,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         deleteSubjectFromSchool,
         renewSubscription,
         toggleBlockSchool,
+        blockSchool,
+        deleteSchool,
         updateClassTeacherRemarks,
         getSchoolAppUrl,
       }}

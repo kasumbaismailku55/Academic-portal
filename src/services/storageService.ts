@@ -177,16 +177,75 @@ export const StorageService = {
   setSchoolBlocked(schoolId: string, isBlocked: boolean, reason?: string): void {
     const list = this.getSchools().map((s) => {
       if (s.id === schoolId) {
+        const isExpired = new Date(s.subscriptionExpiresAt).getTime() < Date.now();
         return {
           ...s,
           isBlocked,
-          subscriptionStatus: isBlocked ? ('blocked' as const) : ('active' as const),
-          blockedReason: reason || (isBlocked ? 'Access suspended by super-admin (ismailkasumba8@gmail.com)' : undefined),
+          subscriptionStatus: isBlocked ? ('blocked' as const) : isExpired ? ('expired' as const) : ('active' as const),
+          blockedReason: isBlocked ? (reason || 'Access suspended by super-admin (ismailkasumba8@gmail.com)') : undefined,
         };
       }
       return s;
     });
     this.saveSchools(list);
+
+    this.addAuditLog({
+      id: `audit_blk_${Date.now()}`,
+      schoolId,
+      timestamp: new Date().toISOString(),
+      action: 'UPDATE',
+      entity: 'School',
+      entityId: schoolId,
+      performedBy: 'Super-Admin (ismailkasumba8@gmail.com)',
+      details: isBlocked
+        ? `School access locked: ${reason || 'Administrative restriction enforced'}`
+        : 'School access restriction lifted',
+    });
+  },
+  deleteSchool(schoolId: string): void {
+    // 1. Remove school from schools list
+    const schools = this.getSchools().filter((s) => s.id !== schoolId);
+    this.saveSchools(schools);
+
+    // 2. Cascade delete teachers
+    const teachers = this.getTeachers().filter((t) => t.schoolId !== schoolId);
+    this.saveTeachers(teachers);
+
+    // 3. Cascade delete students
+    const students = this.getStudents().filter((s) => s.schoolId !== schoolId);
+    this.saveStudents(students);
+
+    // 4. Cascade delete assessments
+    const assessments = this.getAssessments().filter((a) => a.schoolId !== schoolId);
+    this.saveAssessments(assessments);
+
+    // 5. Cascade delete attendance
+    const attendance = this.getAttendance().filter((att) => att.schoolId !== schoolId);
+    this.saveAttendance(attendance);
+
+    // 6. Cascade delete tasks
+    const tasks = this.getTasks().filter((task) => task.schoolId !== schoolId);
+    this.saveTasks(tasks);
+
+    // 7. Cascade delete notifications
+    const notifications = this.getNotifications().filter((n) => n.schoolId !== schoolId);
+    this.saveNotifications(notifications);
+
+    // 8. Cascade delete messages
+    const messages = this.getMessages().filter((m) => m.schoolId !== schoolId);
+    this.saveMessages(messages);
+
+    // 9. Audit log entry
+    this.addAuditLog({
+      id: `audit_del_${Date.now()}`,
+      schoolId: 'system',
+      timestamp: new Date().toISOString(),
+      action: 'DELETE',
+      entity: 'School',
+      entityId: schoolId,
+      performedBy: 'Super-Admin (ismailkasumba8@gmail.com)',
+      details: `Permanently deleted institution record ${schoolId} and cascaded all associated tenant data`,
+    });
   },
   renewSchoolSubscription(schoolId: string, plan: 'Standard Academy' | 'Enterprise Campus', billing: 'termly' | 'annual'): void {
     const months = billing === 'annual' ? 12 : 3;
